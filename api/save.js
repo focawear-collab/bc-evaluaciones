@@ -15,6 +15,13 @@ export default async function handler(req, res) {
   try {
     const d = req.body;
 
+    // Property names with Unicode escapes to avoid UTF-8 encoding issues
+    const PROP_COMUNICACION = 'Comunicaci\u00f3n Efectiva';
+    const PROP_TOLERANCIA = 'Tolerancia bajo Presi\u00f3n';
+    const PROP_ORGANIZACION = 'Organizaci\u00f3n y Planeamiento';
+    const PROP_AREAS = '\u00c1reas de Mejora';
+    const PROP_PLAN = 'Plan de Acci\u00f3n';
+
     // Build properties
     const properties = {
       "Evaluado": { title: [{ text: { content: d.evaluado || '' } }] },
@@ -27,33 +34,33 @@ export default async function handler(req, res) {
       "Banda": { select: { name: d.banda || 'Bueno' } },
       "Trabajo en Equipo": { number: parseFloat(d.trabajoEquipo) || 0 },
       "Proactividad": { number: parseFloat(d.proactividad) || 0 },
-      "ComunicaciÃ³n Efectiva": { number: parseFloat(d.comunicacion) || 0 },
-      "Tolerancia bajo PresiÃ³n": { number: parseFloat(d.tolerancia) || 0 },
-      "OrganizaciÃ³n y Planeamiento": { number: parseFloat(d.organizacion) || 0 },
+      [PROP_COMUNICACION]: { number: parseFloat(d.comunicacion) || 0 },
+      [PROP_TOLERANCIA]: { number: parseFloat(d.tolerancia) || 0 },
+      [PROP_ORGANIZACION]: { number: parseFloat(d.organizacion) || 0 },
       "Fit Cultural": { number: parseFloat(d.fitCultural) || 0 },
     };
 
     if (d.fortalezas) properties["Fortalezas"] = { rich_text: [{ text: { content: d.fortalezas.substring(0, 2000) } }] };
-    if (d.mejoras) properties["Ãreas de Mejora"] = { rich_text: [{ text: { content: d.mejoras.substring(0, 2000) } }] };
-    if (d.plan) properties["Plan de AcciÃ³n"] = { rich_text: [{ text: { content: d.plan.substring(0, 2000) } }] };
+    if (d.mejoras) properties[PROP_AREAS] = { rich_text: [{ text: { content: d.mejoras.substring(0, 2000) } }] };
+    if (d.plan) properties[PROP_PLAN] = { rich_text: [{ text: { content: d.plan.substring(0, 2000) } }] };
     if (d.seguimiento) properties["Seguimiento"] = { date: { start: d.seguimiento } };
 
     // Build page content with detailed scores
-    let content = `## Detalle de Puntajes\n\n`;
+    let content = '## Detalle de Puntajes\n\n';
     if (d.detalle && Array.isArray(d.detalle)) {
       d.detalle.forEach(comp => {
-        content += `### ${comp.name} â ${comp.avg}\n`;
+        content += '### ' + comp.name + ' \u2014 ' + comp.avg + '\n';
         comp.questions.forEach(q => {
-          content += `- ${q.text}: **${q.score}/5**\n`;
+          content += '- ' + q.text + ': **' + q.score + '/5**\n';
         });
-        content += `\n`;
+        content += '\n';
       });
     }
 
     const response = await fetch('https://api.notion.com/v1/pages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${NOTION_TOKEN}`,
+        'Authorization': 'Bearer ' + NOTION_TOKEN,
         'Notion-Version': '2022-06-28',
         'Content-Type': 'application/json'
       },
