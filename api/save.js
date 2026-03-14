@@ -7,22 +7,18 @@ export default async function handler(req, res) {
 
   const NOTION_TOKEN = process.env.NOTION_TOKEN;
   const DATABASE_ID = process.env.NOTION_DB_ID;
-
   if (!NOTION_TOKEN || !DATABASE_ID) {
     return res.status(500).json({ error: 'Missing Notion configuration' });
   }
 
   try {
     const d = req.body;
-
-    // Property names with Unicode escapes to avoid UTF-8 encoding issues
     const PROP_COMUNICACION = 'Comunicaci\u00f3n Efectiva';
     const PROP_TOLERANCIA = 'Tolerancia bajo Presi\u00f3n';
     const PROP_ORGANIZACION = 'Organizaci\u00f3n y Planeamiento';
     const PROP_AREAS = '\u00c1reas de Mejora';
     const PROP_PLAN = 'Plan de Acci\u00f3n';
 
-    // Build properties
     const properties = {
       "Evaluado": { title: [{ text: { content: d.evaluado || '' } }] },
       "Cargo Evaluado": { rich_text: [{ text: { content: d.cargoEvd || '' } }] },
@@ -45,7 +41,6 @@ export default async function handler(req, res) {
     if (d.plan) properties[PROP_PLAN] = { rich_text: [{ text: { content: d.plan.substring(0, 2000) } }] };
     if (d.seguimiento) properties["Seguimiento"] = { date: { start: d.seguimiento } };
 
-    // Build page content with detailed scores
     let content = '## Detalle de Puntajes\n\n';
     if (d.detalle && Array.isArray(d.detalle)) {
       d.detalle.forEach(comp => {
@@ -64,11 +59,7 @@ export default async function handler(req, res) {
         'Notion-Version': '2022-06-28',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        parent: { database_id: DATABASE_ID },
-        properties,
-        children: content ? buildBlocks(content) : []
-      })
+      body: JSON.stringify({ parent: { database_id: DATABASE_ID }, properties, children: content ? buildBlocks(content) : [] })
     });
 
     const result = await response.json();
@@ -77,11 +68,82 @@ export default async function handler(req, res) {
       return res.status(response.status).json({ error: result.message || 'Notion API error' });
     }
 
-    return res.status(200).json({ success: true, pageId: result.id, url: result.url });
+    // Google Calendar: create follow-up event if seguimiento date is set
+    let calendarEventId = null;
+    if (d.seguimiento) {
+      try {
+        calendarEventId = await createCalendarEvent(d);
+      } catch (calErr) {
+        console.error('Calendar error (non-fatal):', calErr.message);
+      }
+    }
+
+    return res.status(200).json({ success: true, pageId: result.id, url: result.url, calendarEventId });
   } catch (err) {
     console.error('Error:', err);
     return res.status(500).json({ error: err.message });
   }
+}
+
+async function getGoogleAccessToken() {
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      grant_type: 'refresh_token'
+    })
+  });
+  const data = await resp.json();
+  if (!data.access_token) throw new Error('Failed to get access token: ' + JSON.stringify(data));
+  return data.access_token;
+}
+
+async function createCalendarEvent(d) {
+  const accessToken = await getGoogleAccessToken();
+  const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+
+  const title = 'Seguimiento: ' + (d.evaluado || 'Evaluado');
+  const description = [
+    'Evaluaci\u00f3n de desempe\u00f1o realizada el ' + (d.fecha || ''),
+    'Evaluador: ' + (d.evaluador || '') + ' (' + (d.cargoEv || '') + ')',
+    'Local: ' + (d.local || ''),
+    'Puntaje General: ' + (d.puntajeGeneral || '') + ' — Banda: ' + (d.banda || ''),
+    '',
+    d.plan ? 'Plan de Acci\u00f3n:\n' + d.plan : ''
+  ].filter(Boolean).join('\n');
+
+  const event = {
+    summary: title,
+    description: description,
+    start: { date: d.seguimiento },
+    end: { date: d.seguimiento },
+    reminders: {
+      useDefault: false,
+      overrides: [
+        { method: 'email', minutes: 24 * 60 },
+        { method: 'popup', minutes: 60 }
+      ]
+    }
+  };
+
+  const resp = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(event)
+    }
+  );
+
+  const result = await resp.json();
+  if (!resp.ok) throw new Error('Calendar API error: ' + JSON.stringify(result));
+  return result.id;
 }
 
 function buildBlocks(markdown) {
@@ -97,9 +159,7 @@ function buildBlocks(markdown) {
       const text = line.replace('- ', '');
       const parts = text.split('**');
       const richText = [];
-      parts.forEach((part, i) => {
-        if (part) richText.push({ text: { content: part }, annotations: { bold: i % 2 === 1 } });
-      });
+      parts.forEach((part, i) => { if (part) richText.push({ text: { content: part }, annotations: { bold: i % 2 === 1 } }); });
       blocks.push({ object: 'block', type: 'bulleted_list_item', bulleted_list_item: { rich_text: richText } });
     } else {
       blocks.push({ object: 'block', type: 'paragraph', paragraph: { rich_text: [{ text: { content: line } }] } });
