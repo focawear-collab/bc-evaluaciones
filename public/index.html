@@ -391,11 +391,11 @@ async function saveToNotion(){
     });
     const data = await resp.json();
     if(data.success){
-      statusText.textContent = '✅ Guardado en Notion';
+      statusText.textContent = '✅ Guardado en Notion · 📧 Email enviado';
       status.style.borderColor = '#22c55e';
       const segDate = lastReportData.seguimiento;
       const segMsg = segDate ? ' · Seguimiento: ' + segDate : '';
-      showToast('Evaluación guardada en Notion' + segMsg, 'success');
+      showToast('Evaluación guardada en Notion · Email enviado' + segMsg, 'success');
     } else {
       statusText.textContent = '❌ Error: '+(data.error||'No se pudo guardar');
       status.style.borderColor = '#ef4444';
