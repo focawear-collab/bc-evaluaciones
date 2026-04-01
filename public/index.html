@@ -8,13 +8,13 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0f0f14;--card:#1a1a24;--card2:#22222e;--gold:#D4A843;--gold-dim:#b8922e;--text:#e8e8ec;--muted:#8a8a9a;--green:#4ade80;--yellow:#facc15;--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--border:#2a2a3a}
+:root{--bg:#0f0f14;--card:#1a1a24;--card2:#2222e;--gold:#D4A843;--gold-dim:#b8922e;--text:#e8e8ec;--muted:#8a8a9a;--green:#4ade80;--yellow:#facc15;--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--border:#2a2a3a}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .app{max-width:1100px;margin:0 auto;padding:20px}
 header{display:flex;align-items:center;gap:16px;padding:20px 0;border-bottom:1px solid var(--border);margin-bottom:24px}
 header img{width:72px;height:72px;object-fit:contain}
 header h1{font-size:1.4rem;font-weight:700;color:var(--gold)}
-header p{font-size:0.85rem;color:var(--muted)}
+header p{font-size:0.85rem;color:var(--muted)
 .phase{display:none}.phase.active{display:block}
 .section-title{font-size:1.1rem;font-weight:600;color:var(--gold);margin:24px 0 12px;display:flex;align-items:center;gap:8px}
 .section-title span{font-size:0.75rem;background:var(--gold);color:var(--bg);padding:2px 8px;border-radius:10px;font-weight:700}
@@ -370,7 +370,7 @@ function newEvaluation(){
   const seg = new Date(); seg.setDate(seg.getDate()+30);
   document.getElementById('f-seguimiento').value = seg.toISOString().split('T')[0];
   lastReportData = null;
-  document.getElementById('post-save-actions').style.display = 'none';
+  const psa = document.getElementById('post-save-actions'); if (psa) psa.style.display = 'none';
   document.getElementById('phase-dash').classList.remove('active');
   document.getElementById('phase-form').classList.add('active');
   window.scrollTo(0,0);
