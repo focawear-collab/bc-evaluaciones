@@ -176,6 +176,7 @@ let lastReportData = null;
 COMPETENCIES.forEach((c,ci) => c.questions.forEach((_,qi) => scores[ci+'_'+qi] = 0));
 
 function renderForm(){
+  document.querySelector('header').style.display='';
   const ct = document.getElementById('comp-container');
   ct.innerHTML = '';
   COMPETENCIES.forEach((comp, ci) => {
@@ -343,6 +344,7 @@ function generateReport(){
   document.getElementById('dash-content').innerHTML = h;
   document.getElementById('phase-form').classList.remove('active');
   document.getElementById('phase-dash').classList.add('active');
+  document.querySelector('header').style.display='none';
   window.scrollTo(0,0);
 
   // Auto-save: charts + PDF + save
