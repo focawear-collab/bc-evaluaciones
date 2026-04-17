@@ -76,7 +76,8 @@ textarea:focus{outline:none;border-color:var(--gold)}
 .notion-badge{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--border);padding:4px 10px;border-radius:6px;font-size:0.75rem;color:var(--muted);margin-top:8px}
 .notion-badge svg{width:14px;height:14px}
 </style>
-</head>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script></head>
 <body>
 <div class="app">
 <header>
@@ -339,10 +340,8 @@ function generateReport(){
   document.getElementById('phase-dash').classList.add('active');
   window.scrollTo(0,0);
 
-  // Auto-save to Notion
-  saveToNotion();
-
-  setTimeout(() => {
+  // Auto-save: charts + PDF + save
+  setTimeout(async () => {
     const labels = compScores.map(c => c.name);
     const vals = compScores.map(c => c.avg);
     const colors = vals.map(v => getHex(v));
@@ -358,6 +357,26 @@ function generateReport(){
       data:{labels, datasets:[{data:vals,backgroundColor:colors.map(c=>c+'33'),borderColor:colors,borderWidth:2,borderRadius:6,barThickness:40}]},
       options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{min:0,max:5,ticks:{stepSize:1,color:'#8a8a9a'},grid:{color:'#2a2a3a22'}},y:{ticks:{color:'#e8e8ec',font:{size:12}},grid:{display:false}}},plugins:{legend:{display:false}}}
     });
+  // Wait for charts to render, generate PDF, then save
+  await new Promise(r => setTimeout(r, 900));
+  let pdfB64 = null;
+  try {
+    const el = document.getElementById('dash-content');
+    if (el && typeof html2pdf !== 'undefined') {
+      const nm = (lastReportData.evaluado||'Evaluado').replace(/\s+/g,'_');
+      const buf = await html2pdf().set({
+        margin:[8,6,8,6],
+        filename:'Eval_'+nm+'.pdf',
+        image:{type:'jpeg',quality:0.92},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:'#0f0f14',scrollX:0,scrollY:-window.scrollY},
+        jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+      }).from(el).outputPdf('arraybuffer');
+      const bytes = new Uint8Array(buf);
+      let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b));
+      pdfB64 = btoa(bin);
+    }
+  } catch(pe){ console.warn('PDF gen:',pe.message); }
+  saveToNotion(pdfB64);
   }, 100);
 }
 
@@ -376,7 +395,7 @@ function newEvaluation(){
   window.scrollTo(0,0);
 }
 
-async function saveToNotion(){
+async function saveToNotion(pdf64){
   if(!lastReportData) return;
   const status = document.getElementById('notion-status');
   const statusText = document.getElementById('notion-status-text');
@@ -387,7 +406,7 @@ async function saveToNotion(){
     const resp = await fetch('/api/save', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(lastReportData)
+      body:JSON.stringify({...lastReportData,pdfBase64:pdf64||null})
     });
     const data = await resp.json();
     if(data.success){
