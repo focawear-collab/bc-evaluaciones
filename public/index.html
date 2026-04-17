@@ -375,7 +375,7 @@ function generateReport(){
         margin:[8,6,8,6],
         filename:'Eval_'+nm+'.pdf',
         image:{type:'jpeg',quality:0.92},
-        html2canvas:{scale:2,useCORS:true,backgroundColor:'#0f0f14',scrollX:0,scrollY:-window.scrollY},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:-window.scrollY,onclone:function(d){d.querySelectorAll('#dash-content,#dash-content *').forEach(function(n){var bg=n.style.backgroundColor||'';if(bg&&(bg.indexOf('rgb(15,')===0||bg.indexOf('rgb(26,')===0||bg.indexOf('rgb(42,')===0||bg.indexOf('rgb(10,')===0)){n.style.backgroundColor='#f5f5f5';n.style.borderColor='#ddd';}var c=n.style.color||'';if(c&&(c.indexOf('rgb(212,')===0||c.indexOf('rgb(153,')===0||c.indexOf('rgb(170,')===0)){n.style.color='#333';}});var r=d.getElementById('dash-content');if(r)r.style.background='#fff';}},
         jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
       }).from(el).outputPdf('arraybuffer');
       const bytes = new Uint8Array(buf);
