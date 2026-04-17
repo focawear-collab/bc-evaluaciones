@@ -102,9 +102,14 @@ export default async function handler(req, res) {
 
         const info = await transporter.sendMail({
           from: '"BlackChicken People 👥" <focawear@gmail.com>',
-          to: 'jonathan@blackchicken.cl, llige@blackchicken.cl',
+          to: 'jonathan@blackchicken.cl, llige@blackchicken.cl, talentos@blackchicken.cl',
           subject,
-          html: emailHtml
+          html: emailHtml,
+        attachments: d.pdfBase64 ? [{
+          filename: 'Evaluacion_' + (d.evaluado || 'Empleado').replace(/\s+/g,'_') + '_' + (d.fecha || new Date().toISOString().split('T')[0]) + '.pdf',
+          content: Buffer.from(d.pdfBase64, 'base64'),
+          contentType: 'application/pdf'
+        }] : []
         });
         emailStatus = info.messageId;
       } catch (emailErr) {
