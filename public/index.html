@@ -267,7 +267,12 @@ function generateReport(){
     detalle: compScores.map(c => ({name:c.name, avg:c.avg.toFixed(1), questions:c.questions}))
   };
 
-  let h = '<div class="info-row" style="margin-bottom:20px">';
+    const _logoSrc = (document.querySelector('header img')||{}).src||'';
+  let h = '<div style="display:flex;align-items:center;gap:16px;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid #2a2a3a">'+
+    '<img src="'+_logoSrc+'" style="width:64px;height:64px;object-fit:contain">'+
+    '<div><h2 style="margin:0;color:#D4A843;font-family:Georgia,serif;font-size:1.25rem;font-weight:700">Informe de Evaluaci\u00f3n de Desempe\u00f1o</h2>'+
+    '<p style="margin:4px 0 0;color:#8a8a9a;font-size:0.82rem">BlackChicken \u2014 Sistema de evaluaci\u00f3n por competencias</p></div></div>';
+  h += '<div class="info-row" style="margin-bottom:20px">';
   h += '<div class="info-item"><strong>'+lastReportData.evaluado+'</strong> — '+lastReportData.cargoEvd+'</div>';
   h += '<div class="info-item">Evaluador: <strong>'+lastReportData.evaluador+'</strong> '+(lastReportData.cargoEv?'('+lastReportData.cargoEv+')':'')+'</div>';
   h += '<div class="info-item">'+lastReportData.local+' · '+lastReportData.fecha+'</div>';
