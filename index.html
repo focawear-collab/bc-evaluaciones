@@ -366,16 +366,21 @@ function generateReport(){
   await new Promise(r => setTimeout(r, 900));
   let pdfB64 = null;
   try {
-    const el = document.getElementById('dash-content');
-    if (el && typeof html2pdf !== 'undefined') {
+    const source = document.getElementById('dash-content');
+    if (source && typeof html2pdf !== 'undefined') {
       const nm = (lastReportData.evaluado||'Evaluado').replace(/\s+/g,'_');
+      // Clonar en position:fixed top:0 para evitar offset negro en html2canvas
+      const clone = source.cloneNode(true);
+      clone.style.cssText = `position:fixed;top:0;left:0;width:${source.offsetWidth}px;background:#0f0f14;z-index:-9999;pointer-events:none;`;
+      document.body.appendChild(clone);
       const buf = await html2pdf().set({
         margin:[8,6,8,6],
         filename:'Eval_'+nm+'.pdf',
         image:{type:'jpeg',quality:0.92},
-        html2canvas:{scale:2,useCORS:true,backgroundColor:'#0f0f14',scrollX:0,scrollY:-window.scrollY},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:'#0f0f14'},
         jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
-      }).from(el).outputPdf('arraybuffer');
+      }).from(clone).outputPdf('arraybuffer');
+      document.body.removeChild(clone);
       const bytes = new Uint8Array(buf);
       let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b));
       pdfB64 = btoa(bin);
