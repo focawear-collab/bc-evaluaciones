@@ -282,10 +282,10 @@ function generateReport(){
   };
 
     const _logoSrc = (document.querySelector('header img')||{}).src||'';
-  let h = '<div style="display:flex;align-items:center;gap:16px;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid #2a2a3a">'+
+  let h = '<div style="display:flex;align-items:center;gap:16px;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--border)">'+
     '<img src="'+_logoSrc+'" style="width:64px;height:64px;object-fit:contain">'+
-    '<div><h2 style="margin:0;color:#D4A843;font-family:Georgia,serif;font-size:1.25rem;font-weight:700">Informe de Evaluaci\u00f3n de Desempe\u00f1o</h2>'+
-    '<p style="margin:4px 0 0;color:#8a8a9a;font-size:0.82rem">BlackChicken \u2014 Sistema de evaluaci\u00f3n por competencias</p></div></div>';
+    '<div><h2 style="margin:0;color:var(--gold);font-family:Georgia,serif;font-size:1.25rem;font-weight:700">Informe de Evaluaci\u00f3n de Desempe\u00f1o</h2>'+
+    '<p style="margin:4px 0 0;color:var(--muted);font-size:0.82rem">BlackChicken \u2014 Sistema de evaluaci\u00f3n por competencias</p></div></div>';
   h += '<div class="info-row" style="margin-bottom:20px">';
   h += '<div class="info-item"><strong>'+lastReportData.evaluado+'</strong> — '+lastReportData.cargoEvd+'</div>';
   h += '<div class="info-item">Evaluador: <strong>'+lastReportData.evaluador+'</strong> '+(lastReportData.cargoEv?'('+lastReportData.cargoEv+')':'')+'</div>';
@@ -397,17 +397,47 @@ function generateReport(){
           el.setAttribute('style', s.replace(/var\(--bg\)/g,'#ffffff').replace(/var\(--card\)/g,'#f5f5f5').replace(/var\(--card2\)/g,'#eeeeee').replace(/var\(--gold\)/g,'#B8922E').replace(/var\(--text\)/g,'#1a1a1a').replace(/var\(--muted\)/g,'#555555').replace(/var\(--border\)/g,'#dddddd').replace(/var\(--green\)/g,'#16a34a').replace(/var\(--yellow\)/g,'#a16207').replace(/var\(--red\)/g,'#dc2626').replace(/var\(--blue\)/g,'#2563eb').replace(/var\(--purple\)/g,'#7c3aed'));
         }
       });
-      await new Promise(r => setTimeout(r, 50));
+      // Actualizar Chart.js a colores claros para PDF
+      const radarInst = Chart.getChart('radarChart');
+      const barInst = Chart.getChart('barChart');
+      if (radarInst) {
+        radarInst.options.scales.r.ticks.color = '#555555';
+        radarInst.options.scales.r.grid.color = '#cccccc';
+        radarInst.options.scales.r.pointLabels.color = '#1a1a1a';
+        radarInst.update('none');
+      }
+      if (barInst) {
+        barInst.options.scales.x.ticks.color = '#555555';
+        barInst.options.scales.x.grid.color = '#cccccc22';
+        barInst.options.scales.y.ticks.color = '#1a1a1a';
+        barInst.update('none');
+      }
+      source.classList.remove('fade-in');
+      await new Promise(r => setTimeout(r, 300));
       const buf = await html2pdf().set({
-        margin:[8,6,8,6],
+        margin:[5,6,5,6],
         filename:'Eval_'+nm+'.pdf',
         image:{type:'jpeg',quality:0.92},
-        html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',scrollY:0,windowHeight:source.scrollHeight},
         jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
       }).from(source).outputPdf('arraybuffer');
+      // Restaurar charts a dark theme
+      if (radarInst) {
+        radarInst.options.scales.r.ticks.color = '#8a8a9a';
+        radarInst.options.scales.r.grid.color = '#2a2a3a';
+        radarInst.options.scales.r.pointLabels.color = '#e8e8ec';
+        radarInst.update('none');
+      }
+      if (barInst) {
+        barInst.options.scales.x.ticks.color = '#8a8a9a';
+        barInst.options.scales.x.grid.color = '#2a2a3a22';
+        barInst.options.scales.y.ticks.color = '#e8e8ec';
+        barInst.update('none');
+      }
       Object.keys(origVars).forEach(k => root.style.removeProperty(k));
       document.body.style.background = origBodyBg;
       inlineBackup.forEach(b => b.el.setAttribute('style', b.orig));
+      source.classList.add('fade-in');
       const bytes = new Uint8Array(buf);
       let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b));
       pdfB64 = btoa(bin);
