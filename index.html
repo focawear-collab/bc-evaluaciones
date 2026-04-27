@@ -376,69 +376,44 @@ function generateReport(){
       data:{labels, datasets:[{data:vals,backgroundColor:colors.map(c=>c+'33'),borderColor:colors,borderWidth:2,borderRadius:6,barThickness:40}]},
       options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{min:0,max:5,ticks:{stepSize:1,color:'#8a8a9a'},grid:{color:'#2a2a3a22'}},y:{ticks:{color:'#e8e8ec',font:{size:12}},grid:{display:false}}},plugins:{legend:{display:false}}}
     });
-  // Wait for charts to render, generate PDF, then save
+  // Esperar charts
   await new Promise(r => setTimeout(r, 900));
   let pdfB64 = null;
   try {
     const source = document.getElementById('dash-content');
     if (source && typeof html2pdf !== 'undefined') {
       const nm = (lastReportData.evaluado||'Evaluado').replace(/\s+/g,'_');
+      const root = document.documentElement;
+      const lightVars = {'--bg':'#ffffff','--card':'#f5f5f5','--card2':'#eeeeee','--gold':'#B8922E','--gold-dim':'#9a7a20','--text':'#1a1a1a','--muted':'#555555','--border':'#dddddd'};
+      const origVars = {};
+      Object.keys(lightVars).forEach(k => { origVars[k] = getComputedStyle(root).getPropertyValue(k); root.style.setProperty(k, lightVars[k]); });
+      const origBodyBg = document.body.style.background;
+      document.body.style.background = '#ffffff';
+      const inlineBackup = [];
+      source.querySelectorAll('*').forEach(el => {
+        const s = el.getAttribute('style')||'';
+        if(s.indexOf('var(--')!==-1){
+          inlineBackup.push({el, orig:s});
+          el.setAttribute('style', s.replace(/var\(--bg\)/g,'#ffffff').replace(/var\(--card\)/g,'#f5f5f5').replace(/var\(--card2\)/g,'#eeeeee').replace(/var\(--gold\)/g,'#B8922E').replace(/var\(--text\)/g,'#1a1a1a').replace(/var\(--muted\)/g,'#555555').replace(/var\(--border\)/g,'#dddddd').replace(/var\(--green\)/g,'#16a34a').replace(/var\(--yellow\)/g,'#a16207').replace(/var\(--red\)/g,'#dc2626').replace(/var\(--blue\)/g,'#2563eb').replace(/var\(--purple\)/g,'#7c3aed'));
+        }
+      });
+      await new Promise(r => setTimeout(r, 50));
       const buf = await html2pdf().set({
         margin:[8,6,8,6],
         filename:'Eval_'+nm+'.pdf',
-        image:{type:'jpeg',quality:0.85},
-        html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',
-          onclone:function(clonedDoc){
-            var style = clonedDoc.createElement('style');
-            style.textContent = ':root{--bg:#ffffff!important;--card:#f5f5f5!important;--card2:#eeeeee!important;--gold:#B8922E!important;--gold-dim:#9a7a20!important;--text:#1a1a1a!important;--muted:#555555!important;--border:#dddddd!important}'+
-              'body{background:#ffffff!important;color:#1a1a1a!important}'+
-              '.dash-card{background:#f5f5f5!important;border-color:#dddddd!important;color:#1a1a1a!important}'+
-              '.score-label{color:#555555!important}'+
-              '.info-item{color:#555555!important}'+
-              '.info-item strong{color:#1a1a1a!important}'+
-              '.hq-text{color:#1a1a1a!important}'+
-              '.hq-comp{color:#666666!important}'+
-              '.q-detail{color:#333333!important;border-bottom-color:#e8e8e8!important}'+
-              '.q-text{color:#555555!important}'+
-              '.comment-box{background:#eeeeee!important;color:#333333!important}'+
-              '.comp-header{color:#1a1a1a!important}'+
-              '.score-band{color:#1a1a1a!important}'+
-              '.band-excelente{background:rgba(74,222,128,0.2)!important;color:#16a34a!important}'+
-              '.band-bueno{background:rgba(96,165,250,0.2)!important;color:#2563eb!important}'+
-              '.band-mejora{background:rgba(250,204,21,0.2)!important;color:#a16207!important}'+
-              '.band-deficiente{background:rgba(248,113,113,0.2)!important;color:#dc2626!important}';
-            clonedDoc.head.appendChild(style);
-            clonedDoc.querySelectorAll('#dash-content, #dash-content *').forEach(function(el){
-              var s = el.getAttribute('style')||'';
-              if(s.indexOf('var(--')!==-1){
-                s = s.replace(/var\(--bg\)/g,'#ffffff')
-                     .replace(/var\(--card\)/g,'#f5f5f5')
-                     .replace(/var\(--card2\)/g,'#eeeeee')
-                     .replace(/var\(--gold\)/g,'#B8922E')
-                     .replace(/var\(--text\)/g,'#1a1a1a')
-                     .replace(/var\(--muted\)/g,'#555555')
-                     .replace(/var\(--border\)/g,'#dddddd')
-                     .replace(/var\(--green\)/g,'#16a34a')
-                     .replace(/var\(--yellow\)/g,'#a16207')
-                     .replace(/var\(--red\)/g,'#dc2626')
-                     .replace(/var\(--blue\)/g,'#2563eb')
-                     .replace(/var\(--purple\)/g,'#7c3aed');
-                el.setAttribute('style',s);
-              }
-            });
-          }
-        },
+        image:{type:'jpeg',quality:0.92},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
         jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
       }).from(source).outputPdf('arraybuffer');
+      Object.keys(origVars).forEach(k => root.style.removeProperty(k));
+      document.body.style.background = origBodyBg;
+      inlineBackup.forEach(b => b.el.setAttribute('style', b.orig));
       const bytes = new Uint8Array(buf);
       let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b));
       pdfB64 = btoa(bin);
-      if(pdfB64 && pdfB64.length > 3*1024*1024){ console.warn('PDF demasiado grande, omitiendo adjunto'); pdfB64 = null; }
     }
   } catch(pe){ console.warn('PDF gen error:',pe); }
-  // Siempre guardar en Notion, con o sin PDF
   try { await saveToNotion(pdfB64); } catch(ne){ console.warn('Notion error:',ne); }
-
   }, 100);
 }
 
