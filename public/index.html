@@ -388,7 +388,7 @@ function generateReport(){
       const buf = await html2pdf().set({
         margin:[8,6,8,6],
         filename:'Eval_'+nm+'.pdf',
-        image:{type:'png',quality:1},
+        image:{type:'jpeg',quality:0.85},
         html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',
           onclone:function(clonedDoc){
             // Inyectar override de CSS variables a tema claro
@@ -437,6 +437,8 @@ function generateReport(){
       const bytes = new Uint8Array(buf);
       let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b));
       pdfB64 = btoa(bin);
+      // Si el PDF es >3MB, no enviarlo (causa timeout)
+      if(pdfB64 && pdfB64.length > 3*1024*1024){ console.warn('PDF demasiado grande, omitiendo adjunto'); pdfB64 = null; }
     }
   } catch(pe){ console.warn('PDF gen error:',pe); }
   // Siempre enviar email y guardar en Notion, con o sin PDF
