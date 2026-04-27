@@ -434,8 +434,10 @@ function generateReport(){
       let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b));
       pdfB64 = btoa(bin);
     }
-  } catch(pe){ console.warn('PDF gen:',pe.message); }
-  saveToNotion(pdfB64);
+  } catch(pe){ console.warn('PDF gen error:',pe); }
+  // Siempre guardar en Notion, con o sin PDF
+  try { await saveToNotion(pdfB64); } catch(ne){ console.warn('Notion error:',ne); }
+
   }, 100);
 }
 
