@@ -77,7 +77,7 @@ textarea:focus{outline:none;border-color:var(--gold)}
 .notion-badge svg{width:14px;height:14px}
 </style>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script></head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script></head>
 <body>
 <div class="app">
 <header>
@@ -449,8 +449,7 @@ function generateReport(){
       pdfB64 = btoa(bin);
     }
   } catch(pe){ console.warn('PDF gen error:',pe); }
-  // Email con PDF adjunto + guardar en Notion
-  try { await sendEmailViaEmailJS(pdfB64); } catch(ee){ console.warn('Email error:',ee); }
+  // Guardar en Notion + enviar email con PDF (todo server-side)
   try { await saveToNotion(pdfB64); } catch(ne){ console.warn('Notion error:',ne); }
   }, 100);
 }
@@ -475,21 +474,29 @@ async function saveToNotion(pdf64){
   const status = document.getElementById('notion-status');
   const statusText = document.getElementById('notion-status-text');
   status.style.display = 'inline-flex';
-  statusText.textContent = '⏳ Guardando en Notion...';
+  statusText.textContent = '⏳ Guardando en Notion y enviando email...';
 
   try{
+    const emailHTML = buildEmailHTML();
     const resp = await fetch('/api/save', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({...lastReportData,pdfBase64:pdf64||null})
+      body:JSON.stringify({...lastReportData, pdfBase64:pdf64||null, emailHTML:emailHTML})
     });
     const data = await resp.json();
     if(data.success){
-      statusText.textContent = '✅ Guardado en Notion · 📧 Email enviado';
-      status.style.borderColor = '#22c55e';
+      const emailOk = data.emailSent;
       const segDate = lastReportData.seguimiento;
       const segMsg = segDate ? ' · Seguimiento: ' + segDate : '';
-      showToast('Evaluación guardada en Notion · Email enviado' + segMsg, 'success');
+      if(emailOk){
+        statusText.textContent = '✅ Guardado en Notion · 📧 Email enviado';
+        status.style.borderColor = '#22c55e';
+        showToast('Evaluación guardada en Notion · Email enviado' + segMsg, 'success');
+      } else {
+        statusText.textContent = '✅ Guardado en Notion · ⚠️ Email no enviado';
+        status.style.borderColor = '#f59e0b';
+        showToast('Guardado en Notion pero el email falló: '+(data.emailError||'error SMTP')+segMsg, 'warning');
+      }
     } else {
       statusText.textContent = '❌ Error: '+(data.error||'No se pudo guardar');
       status.style.borderColor = '#ef4444';
@@ -572,36 +579,6 @@ function buildEmailHTML(){
   return h;
 }
 
-async function sendEmailViaEmailJS(pdfB64){
-  if(!lastReportData)return;
-  try{
-    const params = {
-      evaluado:lastReportData.evaluado,
-      cargo_evd:lastReportData.cargoEvd||'—',
-      evaluador:lastReportData.evaluador,
-      cargo_ev:lastReportData.cargoEv||'—',
-      local:lastReportData.local,
-      fecha:lastReportData.fecha,
-      puntaje:lastReportData.puntajeGeneral.toFixed(1),
-      banda:lastReportData.banda,
-      trabajo_equipo:lastReportData.trabajoEquipo.toFixed(1),
-      proactividad:lastReportData.proactividad.toFixed(1),
-      comunicacion:lastReportData.comunicacion.toFixed(1),
-      tolerancia:lastReportData.tolerancia.toFixed(1),
-      organizacion:lastReportData.organizacion.toFixed(1),
-      fit_cultural:lastReportData.fitCultural.toFixed(1),
-      fortalezas:lastReportData.fortalezas||'—',
-      mejoras:lastReportData.mejoras||'—',
-      plan:lastReportData.plan||'—',
-      seguimiento:lastReportData.seguimiento||'—',
-      informe_html:buildEmailHTML(),
-      pdf_content:pdfB64?'data:application/pdf;base64,'+pdfB64:'',
-      pdf_name:'Evaluacion_'+(lastReportData.evaluado||'Empleado').replace(/\s+/g,'_')+'.pdf'
-    };
-    await emailjs.send('service_i84xlid','template_acpw499',params);
-  }catch(e){console.warn('EmailJS:',e);}
-}
-emailjs.init({publicKey:'3jlsGCFJczgbrjY3t'});
 renderForm();
 </script>
 </body>

@@ -1,3 +1,11 @@
+import nodemailer from 'nodemailer';
+
+const EMAIL_RECIPIENTS = [
+  'talentos@blackchicken.cl',
+  'jonathan@blackchicken.cl',
+  'llige@blackchicken.cl'
+];
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -79,7 +87,24 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ success: true, pageId: result.id, url: result.url, calendarEventId });
+    // Email con PDF adjunto via nodemailer
+    let emailSent = false;
+    let emailError = null;
+    try {
+      emailSent = await sendEvaluationEmail(d);
+    } catch (emailErr) {
+      console.error('Email error (non-fatal):', emailErr.message);
+      emailError = emailErr.message;
+    }
+
+    return res.status(200).json({
+      success: true,
+      pageId: result.id,
+      url: result.url,
+      calendarEventId,
+      emailSent,
+      emailError
+    });
   } catch (err) {
     console.error('Error:', err);
     return res.status(500).json({ error: err.message });
@@ -140,6 +165,62 @@ async function createCalendarEvent(d) {
   const result = await resp.json();
   if (!resp.ok) throw new Error('Calendar API error: ' + JSON.stringify(result));
   return result.id;
+}
+
+async function sendEvaluationEmail(d) {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+  if (!smtpUser || !smtpPass) {
+    throw new Error('Missing SMTP configuration (SMTP_USER / GMAIL_APP_PASSWORD)');
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: { user: smtpUser, pass: smtpPass }
+  });
+
+  const puntaje = parseFloat(d.puntajeGeneral) || 0;
+  const banda = d.banda || 'Sin banda';
+  const subject = `Evaluación de Desempeño — ${d.evaluado || 'Empleado'} (${banda} · ${puntaje.toFixed(1)}/5.0) — ${d.local || 'BC'}`;
+
+  const attachments = [];
+  if (d.pdfBase64) {
+    attachments.push({
+      filename: 'Evaluacion_' + (d.evaluado || 'Empleado').replace(/\s+/g, '_') + '.pdf',
+      content: Buffer.from(d.pdfBase64, 'base64'),
+      contentType: 'application/pdf'
+    });
+  }
+
+  const emailHTML = d.emailHTML || buildFallbackEmailHTML(d);
+
+  await transporter.sendMail({
+    from: `"BlackChicken Evaluaciones" <${smtpUser}>`,
+    to: EMAIL_RECIPIENTS.join(', '),
+    subject,
+    html: emailHTML,
+    attachments
+  });
+
+  return true;
+}
+
+function buildFallbackEmailHTML(d) {
+  const puntaje = parseFloat(d.puntajeGeneral) || 0;
+  return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+    <div style="background:#0f0f14;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+      <h2 style="color:#D4A843;margin:0">Evaluación de Desempeño</h2>
+      <p style="color:#999;margin:4px 0 0;font-size:13px">BlackChicken</p>
+    </div>
+    <div style="padding:20px;border:1px solid #e0e0e0;border-top:none">
+      <p><strong>Evaluado:</strong> ${d.evaluado || '—'} (${d.cargoEvd || '—'})</p>
+      <p><strong>Evaluador:</strong> ${d.evaluador || '—'} (${d.cargoEv || '—'})</p>
+      <p><strong>Local:</strong> ${d.local || '—'} · <strong>Fecha:</strong> ${d.fecha || '—'}</p>
+      <p style="font-size:24px;font-weight:bold;text-align:center">${puntaje.toFixed(1)} — ${d.banda || '—'}</p>
+      <p style="font-size:12px;color:#888;text-align:center">Ver PDF adjunto para el informe completo.</p>
+    </div></div>`;
 }
 
 function buildBlocks(markdown) {
