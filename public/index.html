@@ -517,65 +517,117 @@ function showToast(msg, type){
 }
 
 function buildEmailHTML(){
-  const d = lastReportData;
+  var d = lastReportData;
   if(!d) return '';
-  function bandColor(b){
-    if(b==='Excelente') return '#16a34a';
-    if(b==='Bueno') return '#2563eb';
-    if(b==='Necesita Mejora') return '#d97706';
-    return '#dc2626';
-  }
-  function scoreColor(v){
-    if(v>=4) return '#16a34a';
-    if(v>=3) return '#2563eb';
-    if(v>=2) return '#d97706';
-    return '#dc2626';
-  }
-  let h = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;color:#1a1a1a">';
-  h += '<div style="background:#0f0f14;padding:20px;border-radius:8px 8px 0 0;text-align:center">';
-  h += '<h2 style="color:#D4A843;margin:0;font-size:20px">Informe de Evaluación de Desempeño</h2>';
-  h += '<p style="color:#999;margin:4px 0 0;font-size:13px">BlackChicken — Sistema de evaluación por competencias</p></div>';
-  h += '<div style="padding:20px;border:1px solid #e0e0e0;border-top:none">';
-  h += '<table style="width:100%;font-size:13px;margin-bottom:16px"><tr>';
-  h += '<td><strong>Evaluado:</strong> '+d.evaluado+'</td>';
-  h += '<td><strong>Cargo:</strong> '+(d.cargoEvd||'—')+'</td></tr><tr>';
-  h += '<td><strong>Evaluador:</strong> '+d.evaluador+'</td>';
-  h += '<td><strong>Cargo:</strong> '+(d.cargoEv||'—')+'</td></tr><tr>';
-  h += '<td><strong>Local:</strong> '+d.local+'</td>';
-  h += '<td><strong>Fecha:</strong> '+d.fecha+'</td></tr></table>';
-  h += '<div style="text-align:center;padding:16px;background:#f5f5f5;border-radius:8px;margin-bottom:16px">';
-  h += '<div style="font-size:42px;font-weight:800;color:'+scoreColor(d.puntajeGeneral)+'">'+d.puntajeGeneral.toFixed(1)+'</div>';
-  h += '<div style="display:inline-block;padding:4px 12px;border-radius:6px;font-size:13px;font-weight:600;color:#fff;background:'+bandColor(d.banda)+'">'+d.banda+'</div>';
-  h += '<div style="font-size:12px;color:#888;margin-top:6px">de 5.0 posibles · 18 preguntas</div></div>';
-  h += '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px">';
-  h += '<tr style="background:#f0f0f0"><th style="padding:8px;text-align:left;border:1px solid #ddd">Competencia</th><th style="padding:8px;text-align:center;width:70px;border:1px solid #ddd">Puntaje</th></tr>';
-  var comps = [{n:'Trabajo en Equipo',v:d.trabajoEquipo},{n:'Proactividad',v:d.proactividad},{n:'Comunicación Efectiva',v:d.comunicacion},{n:'Tolerancia bajo Presión',v:d.tolerancia},{n:'Organización y Planeamiento',v:d.organizacion},{n:'Fit Cultural',v:d.fitCultural}];
-  comps.forEach(function(c){
-    h += '<tr><td style="padding:8px;border:1px solid #ddd">'+c.n+'</td>';
-    h += '<td style="padding:8px;text-align:center;border:1px solid #ddd;font-weight:700;color:'+scoreColor(c.v)+'">'+c.v.toFixed(1)+'</td></tr>';
-  });
-  h += '</table>';
-  if(d.detalle && d.detalle.length){
-    h += '<h3 style="font-size:15px;margin:16px 0 8px;color:#333">Detalle por Competencia</h3>';
+  function bC(b){ return b==='Excelente'?'#16a34a':b==='Bueno'||b==='Muy Bueno'?'#2563eb':b==='Necesita Mejora'?'#d97706':'#dc2626'; }
+  function sC(v){ return v>=4?'#16a34a':v>=3?'#2563eb':v>=2?'#d97706':'#dc2626'; }
+  function bar(v){ return '<table width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 8px"><tr><td style="width:'+(v/5*100)+'%;height:6px;background:'+sC(v)+';border-radius:3px"></td><td style="height:6px;background:#e8e8e8;border-radius:0 3px 3px 0"></td></tr></table>'; }
+  // Compute top3/bottom3 from detalle
+  var allQ=[];
+  if(d.detalle&&d.detalle.length){
     d.detalle.forEach(function(comp){
-      h += '<div style="margin-bottom:12px"><div style="font-weight:600;font-size:13px;padding:6px 0;border-bottom:2px solid '+scoreColor(parseFloat(comp.avg))+'">'+comp.name+' — <span style="color:'+scoreColor(parseFloat(comp.avg))+'">'+comp.avg+'</span></div>';
-      comp.questions.forEach(function(q){
-        h += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid #f0f0f0"><span style="flex:1">'+q.text+'</span><span style="font-weight:700;color:'+scoreColor(q.score)+';min-width:30px;text-align:right">'+q.score+'</span></div>';
-      });
-      h += '</div>';
+      comp.questions.forEach(function(q){ allQ.push({text:q.text, score:q.score, comp:comp.name}); });
     });
   }
+  var sorted=[].concat(allQ).sort(function(a,b){return b.score-a.score;});
+  var top3=sorted.slice(0,3);
+  var bottom3=sorted.slice(-3).reverse();
+
+  var h='<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1a1a1a">';
+  // Header
+  h+='<div style="background:#0f0f14;padding:24px 20px;text-align:center">';
+  h+='<h1 style="color:#D4A843;margin:0;font-size:22px;font-family:Georgia,serif">Informe de Evaluación de Desempeño</h1>';
+  h+='<p style="color:#888;margin:6px 0 0;font-size:12px">BlackChicken — Sistema de evaluación por competencias</p></div>';
+
+  h+='<div style="padding:24px 20px;border:1px solid #e0e0e0;border-top:none">';
+
+  // Info row
+  h+='<table width="100%" style="font-size:13px;margin-bottom:20px;border-collapse:collapse"><tr>';
+  h+='<td style="padding:6px 0"><strong>Evaluado:</strong> '+d.evaluado+'</td>';
+  h+='<td style="padding:6px 0"><strong>Cargo:</strong> '+(d.cargoEvd||'—')+'</td></tr><tr>';
+  h+='<td style="padding:6px 0"><strong>Evaluador:</strong> '+d.evaluador+'</td>';
+  h+='<td style="padding:6px 0"><strong>Cargo:</strong> '+(d.cargoEv||'—')+'</td></tr><tr>';
+  h+='<td style="padding:6px 0"><strong>Local:</strong> '+d.local+'</td>';
+  h+='<td style="padding:6px 0"><strong>Fecha:</strong> '+d.fecha+'</td></tr></table>';
+
+  // Score card
+  h+='<div style="text-align:center;padding:20px;background:#f5f5f5;border-radius:8px;margin-bottom:20px">';
+  h+='<div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Puntaje General</div>';
+  h+='<div style="font-size:48px;font-weight:800;color:'+sC(d.puntajeGeneral)+';line-height:1.1">'+d.puntajeGeneral.toFixed(1)+'</div>';
+  h+='<div style="display:inline-block;padding:5px 16px;border-radius:6px;font-size:13px;font-weight:600;color:#fff;background:'+bC(d.banda)+';margin-top:6px">'+d.banda+'</div>';
+  h+='<div style="font-size:12px;color:#999;margin-top:8px">de 5.0 posibles · 18 preguntas</div></div>';
+
+  // Competency summary with progress bars
+  h+='<div style="margin-bottom:20px">';
+  h+='<div style="font-size:14px;font-weight:700;color:#333;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #D4A843">Resumen por Competencia</div>';
+  var comps=[{n:'Trabajo en Equipo',v:d.trabajoEquipo},{n:'Proactividad',v:d.proactividad},{n:'Comunicación Efectiva',v:d.comunicacion},{n:'Tolerancia bajo Presión',v:d.tolerancia},{n:'Organización y Planeamiento',v:d.organizacion},{n:'Fit Cultural',v:d.fitCultural}];
+  comps.forEach(function(c){
+    h+='<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:2px"><tr>';
+    h+='<td style="font-size:13px;padding:4px 0">'+c.n+'</td>';
+    h+='<td style="font-size:14px;font-weight:700;color:'+sC(c.v)+';text-align:right;width:40px;padding:4px 0">'+c.v.toFixed(1)+'</td></tr></table>';
+    h+=bar(c.v);
+  });
+  h+='</div>';
+
+  // Top 3 + Bottom 3 side by side
+  if(top3.length){
+    h+='<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px"><tr>';
+    h+='<td width="50%" valign="top" style="padding-right:8px">';
+    h+='<div style="font-size:13px;font-weight:700;color:#16a34a;margin-bottom:8px">✅ Fortalezas (Top 3)</div>';
+    top3.forEach(function(q){
+      h+='<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;font-size:12px">';
+      h+='<span style="display:inline-block;min-width:28px;height:28px;line-height:28px;text-align:center;border-radius:6px;font-weight:700;color:'+sC(q.score)+';background:'+sC(q.score)+'15">'+q.score+'</span>';
+      h+='<span><span style="color:#1a1a1a">'+q.text+'</span><br><span style="color:#999;font-size:11px">'+q.comp+'</span></span></div>';
+    });
+    h+='</td>';
+    h+='<td width="50%" valign="top" style="padding-left:8px">';
+    h+='<div style="font-size:13px;font-weight:700;color:#d97706;margin-bottom:8px">⚠️ Oportunidades (Bottom 3)</div>';
+    bottom3.forEach(function(q){
+      h+='<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;font-size:12px">';
+      h+='<span style="display:inline-block;min-width:28px;height:28px;line-height:28px;text-align:center;border-radius:6px;font-weight:700;color:'+sC(q.score)+';background:'+sC(q.score)+'15">'+q.score+'</span>';
+      h+='<span><span style="color:#1a1a1a">'+q.text+'</span><br><span style="color:#999;font-size:11px">'+q.comp+'</span></span></div>';
+    });
+    h+='</td></tr></table>';
+  }
+
+  // Detail per competency
+  if(d.detalle&&d.detalle.length){
+    h+='<div style="font-size:14px;font-weight:700;color:#333;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #D4A843">Detalle por Competencia</div>';
+    d.detalle.forEach(function(comp){
+      var avg=parseFloat(comp.avg);
+      h+='<div style="margin-bottom:16px">';
+      h+='<table width="100%" cellpadding="0" cellspacing="0"><tr>';
+      h+='<td style="font-size:13px;font-weight:600;color:#333">'+comp.name+'</td>';
+      h+='<td style="font-size:14px;font-weight:700;color:'+sC(avg)+';text-align:right;width:40px">'+comp.avg+'</td></tr></table>';
+      h+=bar(avg);
+      comp.questions.forEach(function(q){
+        h+='<table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #f0f0f0"><tr>';
+        h+='<td style="font-size:12px;color:#555;padding:5px 0">'+q.text+'</td>';
+        h+='<td style="font-size:12px;font-weight:700;color:'+sC(q.score)+';text-align:right;width:30px;padding:5px 0">'+q.score+'</td></tr></table>';
+      });
+      h+='</div>';
+    });
+  }
+
+  // Comments
   if(d.fortalezas||d.mejoras||d.plan){
-    h += '<h3 style="font-size:15px;margin:16px 0 8px;color:#333">Comentarios y Plan de Acción</h3>';
-    if(d.fortalezas) h += '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:#16a34a;margin-bottom:2px">FORTALEZAS</div><div style="background:#f5f5f5;padding:8px;border-radius:6px;font-size:13px">'+d.fortalezas+'</div></div>';
-    if(d.mejoras) h += '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:#d97706;margin-bottom:2px">ÁREAS DE MEJORA</div><div style="background:#f5f5f5;padding:8px;border-radius:6px;font-size:13px">'+d.mejoras+'</div></div>';
-    if(d.plan) h += '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:#2563eb;margin-bottom:2px">PLAN DE ACCIÓN</div><div style="background:#f5f5f5;padding:8px;border-radius:6px;font-size:13px">'+d.plan+'</div></div>';
+    h+='<div style="font-size:14px;font-weight:700;color:#333;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #D4A843">Comentarios y Plan de Acción</div>';
+    if(d.fortalezas) h+='<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Fortalezas</div><div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:10px;border-radius:6px;font-size:13px;color:#333">'+d.fortalezas+'</div></div>';
+    if(d.mejoras) h+='<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#d97706;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Áreas de Mejora</div><div style="background:#fffbeb;border:1px solid #fde68a;padding:10px;border-radius:6px;font-size:13px;color:#333">'+d.mejoras+'</div></div>';
+    if(d.plan) h+='<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#2563eb;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Plan de Acción</div><div style="background:#eff6ff;border:1px solid #bfdbfe;padding:10px;border-radius:6px;font-size:13px;color:#333">'+d.plan+'</div></div>';
   }
+
+  // Seguimiento
   if(d.seguimiento){
-    h += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-top:12px;font-size:13px">';
-    h += '<strong style="color:#d97706">Seguimiento programado:</strong> La jefatura recibirá un recordatorio el <strong>'+d.seguimiento+'</strong> para revisar avances del plan de acción.</div>';
+    h+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin-top:16px;font-size:13px">';
+    h+='<strong style="color:#d97706">🔔 Seguimiento programado:</strong> La jefatura recibirá un recordatorio el <strong>'+d.seguimiento+'</strong> para revisar avances del plan de acción.</div>';
   }
-  h += '</div></div>';
+
+  // Footer
+  h+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e0e0e0;text-align:center;font-size:11px;color:#999">';
+  h+='Generado por el sistema de evaluación de desempeño BlackChicken · '+d.fecha+'</div>';
+
+  h+='</div></div>';
   return h;
 }
 
