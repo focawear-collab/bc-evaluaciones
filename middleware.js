@@ -17,7 +17,9 @@ async function hmac(texto) {
   return Array.from(s, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 function igual(a, b) { a = String(a); b = String(b); if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; }
-const alPortal = () => new Response(null, { status: 302, headers: { Location: PORTAL, 'Cache-Control': 'no-store' } });
+// Sin cookie: al portal, con ?volver=<esta página> para que después del PIN vuelva aquí y no al inicio.
+const alPortal = (volver) => new Response(null, { status: 302, headers: { Location: volver ? PORTAL + '?volver=' + encodeURIComponent(volver) : PORTAL, 'Cache-Control': 'no-store' } });
+const destino = (r) => (typeof r === 'string' && r.length < 4000 && /^\/(?![\/\\])/.test(r)) ? r : '/';
 
 export default async function middleware(request) {
   if (!process.env.SSO_SECRET) return new Response('Acceso no configurado', { status: 503 });
@@ -33,7 +35,7 @@ export default async function middleware(request) {
     if (!igual(p[5], await hmac(base)) || p[3] !== host || !(persona > 0) || !(hasta > ahora) || !(ahora - emitido < 120000)) return alPortal();
     const firma = await hmac(['gate', host, persona, hasta].join('~'));
     return new Response(null, { status: 302, headers: {
-      Location: url.origin + '/', 'Cache-Control': 'no-store', // absoluta: Next.js no acepta redirecciones relativas
+      Location: url.origin + destino(url.searchParams.get('r')), 'Cache-Control': 'no-store', // absoluta: Next.js no acepta redirecciones relativas
       'Set-Cookie': `${COOKIE}=${persona}~${hasta}~${firma}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${Math.floor((hasta - ahora) / 1000)}`,
     } });
   }
@@ -44,6 +46,6 @@ export default async function middleware(request) {
     const [persona, hasta, firma] = c.slice(COOKIE.length + 1).split('~');
     if (Number(hasta) > Date.now() && igual(firma, await hmac(['gate', host, persona, hasta].join('~')))) return; // sigue
   }
-  return alPortal();
+  return alPortal(request.method === 'GET' && !url.pathname.startsWith('/api/') ? url.href : '');
 }
 export { middleware };
