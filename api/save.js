@@ -3,7 +3,8 @@ import nodemailer from 'nodemailer';
 const EMAIL_RECIPIENTS = [
   'talentos@blackchicken.cl',
   'jonathan@blackchicken.cl',
-  'llige@blackchicken.cl'
+  'llige@blackchicken.cl',
+  'daniel@blackchicken.cl'
 ];
 
 export default async function handler(req, res) {
