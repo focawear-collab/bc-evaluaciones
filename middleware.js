@@ -7,7 +7,7 @@
 // Env: SSO_SECRET (el mismo del portal). Kit: blackchicken-app/sso-kit/gate/
 export const config = { matcher: '/((?!favicon.ico).*)' };
 
-const PORTAL = 'https://blackchicken-app.vercel.app/';
+const PORTAL = 'https://app.blackchicken.tech/';
 const COOKIE = 'bc_gate';
 const enc = new TextEncoder();
 
