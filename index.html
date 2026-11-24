@@ -633,7 +633,7 @@ function buildEmailHTML(){
 
 renderForm();
 </script>
-<!-- BC-HOME v1: el logo de BlackChicken vuelve al portal (app.blackchicken.tech). No editar a mano. -->
+<!-- BC-HOME v2: el logo de BlackChicken vuelve al portal (app.blackchicken.tech). No editar a mano. -->
 <script>
 (function(){
   if (window.__bcHome) return; window.__bcHome = 1;
@@ -666,6 +666,26 @@ renderForm();
   function buscar(){
     var n = document.querySelectorAll('img,svg,[class*="logo"],[class*="Logo"],[class*="brand"],[class*="marca"],[id*="logo"],[id*="brand"]');
     for (var i = 0; i < n.length; i++) { try { if (esLogo(n[i])) marcar(n[i]); } catch (x) {} }
+    try {
+      var vw = window.innerWidth || 1000, sy = window.scrollY || 0, mejor = null, mr = null;
+      // Logo como imagen incrustada (data:) sin nombre: la imagen chica más arriba a la izquierda del encabezado
+      var im = document.images;
+      for (var j = 0; j < im.length; j++) {
+        var r = im[j].getBoundingClientRect(), top = r.top + sy;
+        if (r.width > 0 && r.width <= 160 && r.height <= 120 && top < 140 && r.left < vw * 0.5 &&
+            (!mr || top < mr.t - 4 || (Math.abs(top - mr.t) <= 4 && r.left < mr.l))) { mejor = im[j]; mr = { t: top, l: r.left }; }
+      }
+      if (mejor) marcar(mejor);
+      // Logo de texto ("BlackChicken", "Black Chicken · RRHH") en el encabezado
+      var tx = document.querySelectorAll('h1,h2,b,strong,span,div,a,p');
+      for (var k = 0; k < tx.length; k++) {
+        var e = tx[k]; if (e.__bcHome) continue;
+        var propio = e.children.length ? (e.firstChild && e.firstChild.nodeType === 3 ? e.firstChild.nodeValue : '') : (e.textContent || '');
+        if (!/^\s*black\s*chicken\b/i.test(propio || '')) continue;
+        var q = e.getBoundingClientRect();
+        if (q.width > 0 && q.width < 420 && q.top + sy < 140) marcar(e);
+      }
+    } catch (x) {}
   }
   var t = null;
   function programar(){ clearTimeout(t); t = setTimeout(buscar, 150); }
