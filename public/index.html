@@ -633,5 +633,46 @@ function buildEmailHTML(){
 
 renderForm();
 </script>
+<!-- BC-HOME v1: el logo de BlackChicken vuelve al portal (app.blackchicken.tech). No editar a mano. -->
+<script>
+(function(){
+  if (window.__bcHome) return; window.__bcHome = 1;
+  var PORTAL = 'https://app.blackchicken.tech/';
+  var RX_IMG = /(logo|blackchicken|black[-_ ]?chicken)/i;
+  var RX_CLS = /(^|[\s_-])(logo|brand|marca)([\s_-]|$)/i;
+  function volver(e){
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    try { if (window.top !== window.self) { window.parent.postMessage({ bc: 'home' }, '*'); return; } } catch (x) {}
+    location.href = PORTAL;
+  }
+  function marcar(el){
+    if (!el || el.__bcHome) return;
+    el.__bcHome = 1;
+    el.style.cursor = 'pointer';
+    if (!el.getAttribute('title')) el.setAttribute('title', 'Volver a BlackChicken APP');
+    el.addEventListener('click', volver, true);
+  }
+  function esLogo(el){
+    if (el.tagName === 'IMG') {
+      var src = (el.getAttribute('src') || '').split('?')[0].split('/').pop();
+      if (RX_IMG.test(src) || /black\s?chicken/i.test(el.getAttribute('alt') || '')) return true;
+      return false;
+    }
+    var c = (typeof el.className === 'string' ? el.className : (el.getAttribute('class') || '')) + ' ' + (el.id || '');
+    if (!RX_CLS.test(c)) return false;
+    var r = el.getBoundingClientRect();                     // solo marcas chicas (no fondos ni secciones)
+    return r.width > 0 && r.width < 420 && r.height < 160;
+  }
+  function buscar(){
+    var n = document.querySelectorAll('img,svg,[class*="logo"],[class*="Logo"],[class*="brand"],[class*="marca"],[id*="logo"],[id*="brand"]');
+    for (var i = 0; i < n.length; i++) { try { if (esLogo(n[i])) marcar(n[i]); } catch (x) {} }
+  }
+  var t = null;
+  function programar(){ clearTimeout(t); t = setTimeout(buscar, 150); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', buscar); else buscar();
+  try { new MutationObserver(programar).observe(document.documentElement, { childList: true, subtree: true }); } catch (x) {}
+})();
+</script>
+<!-- /BC-HOME -->
 </body>
 </html>
